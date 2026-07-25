@@ -14,6 +14,13 @@ import torch.nn as nn
 import xgboost as xgb
 from scipy.stats import norm
 
+# Streamlit's local file watcher walks every imported module's __path__ to detect
+# changes; torch registers a custom __path__._path on torch.classes that isn't a
+# real filesystem path, so the walk raises. The exception is caught and logged by
+# Streamlit (harmless), but silencing it here keeps the __path__ empty so the
+# watcher has nothing to trip over.
+torch.classes.__path__ = []
+
 FEATURE_COLS = ["customer_id", "dow", "month", "lag_1", "lag_7", "lag_14",
                  "roll_mean_7", "roll_std_7", "gvi", "climate_index", "macro_index"]
 
