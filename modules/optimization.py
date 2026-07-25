@@ -31,13 +31,24 @@ def suggest_fleet_size(demand_forecast: np.ndarray, vehicle_capacity: int, buffe
 
 
 def solve_cvrp_sd(depot: dict, customers: pd.DataFrame, demand_forecast: np.ndarray,
-                   vehicle_capacity: int, num_vehicles: int, time_limit_s: int = 5) -> dict:
+                   vehicle_capacity: int, num_vehicles: int, time_limit_s: int = 5,
+                   distance_matrix_km: np.ndarray | None = None) -> dict:
+    """`distance_matrix_km` optionally overrides the internal haversine matrix (e.g.
+    with real road-network distances from `modules.routing_backend.get_distance_matrix`)
+    — must be square, ordered [depot, *customers] to match `locations` below. Left as
+    None (default), behavior is unchanged from before this parameter existed."""
     locations = pd.concat([
         pd.DataFrame([{"customer_id": depot["customer_id"], "lat": depot["lat"], "lon": depot["lon"]}]),
         customers[["customer_id", "lat", "lon"]],
     ], ignore_index=True)
 
-    dist_km = _haversine_matrix(locations["lat"].to_numpy(), locations["lon"].to_numpy())
+    if distance_matrix_km is not None:
+        dist_km = np.asarray(distance_matrix_km, dtype=float)
+        if dist_km.shape != (len(locations), len(locations)):
+            raise ValueError(f"distance_matrix_km shape {dist_km.shape} != expected "
+                              f"({len(locations)}, {len(locations)})")
+    else:
+        dist_km = _haversine_matrix(locations["lat"].to_numpy(), locations["lon"].to_numpy())
     dist_m = np.round(dist_km * 1000).astype(int)
     demands = np.concatenate([[0], np.round(np.asarray(demand_forecast)).astype(int)])
 
