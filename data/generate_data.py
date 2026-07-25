@@ -12,8 +12,8 @@ N_DAYS = 730
 SEED = 42
 
 
-def _date_index() -> pd.DatetimeIndex:
-    return pd.date_range("2024-01-01", periods=N_DAYS, freq="D")
+def _date_index(n_days: int = N_DAYS) -> pd.DatetimeIndex:
+    return pd.date_range("2024-01-01", periods=n_days, freq="D")
 
 
 def generate_exogenous_series(dates: pd.DatetimeIndex, seed: int = SEED) -> pd.DataFrame:
@@ -87,12 +87,14 @@ def generate_lead_times(customers: pd.DataFrame, exogenous: pd.DataFrame,
     return pd.concat(rows, ignore_index=True)
 
 
-def load_or_generate_data(n_customers: int = 24, seed: int = SEED, force: bool = False) -> dict:
+def load_or_generate_data(n_customers: int = 24, n_days: int = N_DAYS, seed: int = SEED,
+                           force: bool = False) -> dict:
+    tag = f"{n_customers}c_{n_days}d_{seed}s"
     paths = {
-        "demand": os.path.join(DATA_DIR, "demand.csv"),
-        "exogenous": os.path.join(DATA_DIR, "exogenous.csv"),
-        "customers": os.path.join(DATA_DIR, "customers.csv"),
-        "lead_times": os.path.join(DATA_DIR, "lead_times.csv"),
+        "demand": os.path.join(DATA_DIR, f"demand_{tag}.csv"),
+        "exogenous": os.path.join(DATA_DIR, f"exogenous_{tag}.csv"),
+        "customers": os.path.join(DATA_DIR, f"customers_{tag}.csv"),
+        "lead_times": os.path.join(DATA_DIR, f"lead_times_{tag}.csv"),
     }
     if not force and all(os.path.exists(p) for p in paths.values()):
         return {
@@ -103,7 +105,7 @@ def load_or_generate_data(n_customers: int = 24, seed: int = SEED, force: bool =
             "depot": DEPOT,
         }
 
-    dates = _date_index()
+    dates = _date_index(n_days)
     exogenous = generate_exogenous_series(dates, seed)
     customers = generate_customer_locations(n_customers, seed)
     demand = generate_demand_data(dates, customers, exogenous, seed)

@@ -78,6 +78,34 @@ Launch the dashboard:
 streamlit run app.py
 ```
 
+### Data source
+
+- **Synthetic demo** — the built-in Bogotá-area network. **Simulated customers** (5–60)
+  and **Simulated history (days)** (90–730) control the size of the generated dataset;
+  smaller values mean faster training/routing/SHAP while developing.
+- **Upload my own dataset** — bring your own logistics data and run the full pipeline
+  (forecast → risk → routing → XAI) against it:
+  - `customers.csv` (required): `customer_id, name, lat, lon, base_demand`
+  - `demand.csv` (required): `date, customer_id, demand` — at least 15 daily rows per
+    customer (the forecasters need that much history for lag/rolling features)
+  - `exogenous.csv` (optional): `date, gvi, climate_index, macro_index` — omit it and
+    flat neutral values are used instead
+  - Depot latitude/longitude default to the centroid of the uploaded customers and can
+    be overridden in the sidebar.
+  - CSV templates are downloadable from the "Required CSV schema" sidebar expander.
+    Invalid uploads (missing columns, unparseable dates, unknown customer IDs, too
+    little history) show specific error messages instead of crashing.
+  - A "Dataset summary" panel at the top of the main page shows customer count, row
+    count, and date range for whichever dataset is active.
+
+### Performance mode
+
+- **Fast** (default) — smaller SHAP sample, shorter CVRP-SD solve time limit, a
+  30-customer cap on routing, and lighter XGBoost/LSTM models. Recommended on free-tier
+  cloud hosting (e.g. Streamlit Community Cloud) to stay under CPU throttling limits.
+- **Full** — production-quality settings: full SHAP sample, longer solve time, no
+  customer cap, full model size.
+
 ### Dashboard controls
 
 - **Geopolitical Volatility Index** — overrides the last 30 days of GVI to simulate a
@@ -90,14 +118,26 @@ streamlit run app.py
 ### Panels
 
 - **Demand Forecast** — actual vs. quantile-forecast demand trajectory, with an optional
-  LSTM comparison model (trained on demand, cached after first click).
+  LSTM comparison model (trained on demand, cached after first click), and a CSV export
+  of the plotted forecast.
 - **Stockout Risk** — naive mean-demand inventory sizing vs. ML-informed
   (quantile-sized) inventory, with the relative risk reduction computed live from the
-  current scenario (not a fixed benchmark number).
+  current scenario (not a fixed benchmark number), and a CSV export of the per-customer
+  risk table.
 - **Vehicle Routing** — the CVRP-SD solution rendered on a Folium map, color-coded per
-  vehicle, sized against the current quantile-target demand forecast.
+  vehicle, sized against the current quantile-target demand forecast, with a CSV export
+  of the per-stop routing plan. In Fast mode, routing is capped to a subsample of
+  customers (see Performance mode above).
 - **Explainability** — SHAP global feature importance and per-customer SHAP/LIME
   explanations for the active XGBoost quantile model.
+
+### Performance notes
+
+CVRP-SD solving (OR-Tools) and SHAP/LIME explanation are cached (`@st.cache_data`) keyed
+on their actual inputs, and model training is cached (`@st.cache_resource`) keyed on the
+active dataset plus the scenario parameters that affect it — so unrelated widget changes
+(e.g. moving the vehicle capacity slider while on the Forecast tab) no longer re-solve
+routing or recompute explanations on every rerun.
 
 ## Design notes
 
